@@ -1,0 +1,36 @@
+name: Delete one post
+
+on:
+  workflow_dispatch:
+    inputs:
+      uri:
+        description: "at:// URI of the post to delete"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Delete post
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          POST_URI: ${{ inputs.uri }}
+        run: python -m app.main --delete-uri "$POST_URI" --json

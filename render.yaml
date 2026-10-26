@@ -1,0 +1,57 @@
+services:
+  - type: web
+    name: bluesky-automation
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: STATE_BACKEND
+        value: git
+      - key: STATE_GIT_BRANCH
+        value: main
+      - key: STATE_GIT_REPO
+        sync: false
+      - key: STATE_GIT_SSH_KEY_B64
+        sync: false
+      - key: BSKY_HANDLE
+        sync: false
+      - key: BSKY_APP_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: POSTING_ENABLED
+        value: "true"
+      - key: ENGAGEMENT_ENABLED
+        value: "true"
+      - key: ENGAGEMENT_REQUIRE_AI
+        value: "true"
+      - key: ENGAGEMENT_DAILY_LIMIT
+        value: "30"
+      - key: ENGAGEMENT_WEEKLY_LIMIT
+        value: "210"
+      - key: MAX_POSTS_PER_DAY
+        value: "4"
+      - key: MAX_TOTAL_POSTS_PER_DAY
+        value: "4"
+      - key: MIN_VIRALITY_SCORE
+        value: "30"
+      - key: TIMEZONE
+        value: Asia/Kolkata
+      - key: SCHEDULE_START
+        value: "08:00"
+      - key: SCHEDULE_END
+        value: "23:30"
+      - key: SCHEDULE_POSTS_PER_DAY
+        value: "4"
+      - key: SCHEDULE_REPLIES_PER_DAY
+        value: "30"
+      - key: SCHEDULE_POST_MIN_GAP_MINUTES
+        value: "90"
+      - key: SCHEDULE_REPLY_MIN_GAP_MINUTES
+        value: "12"

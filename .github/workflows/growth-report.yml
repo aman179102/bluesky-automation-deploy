@@ -1,0 +1,52 @@
+name: Growth report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 3 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bluesky-growth-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build growth report
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          python -m app.main --growth-report | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit growth snapshot
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f state/growth.json ]; then
+            git add state/growth.json
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "chore: update growth snapshot [skip ci]"
+              git push
+            fi
+          fi

@@ -1,0 +1,77 @@
+name: Reply to relevant posts
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      live:
+        description: "Post a reply instead of only planning one"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bluesky-engagement
+  cancel-in-progress: false
+
+jobs:
+  engage:
+    if: github.event_name == 'workflow_dispatch' || vars.ENGAGEMENT_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Plan or post one relevant reply
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          POSTING_ENABLED: ${{ vars.POSTING_ENABLED || 'true' }}
+          ENGAGEMENT_ENABLED: ${{ vars.ENGAGEMENT_ENABLED || 'false' }}
+          ENGAGEMENT_REQUIRE_AI: "true"
+          ENGAGEMENT_DAILY_LIMIT: ${{ vars.ENGAGEMENT_DAILY_LIMIT || '2' }}
+          ENGAGEMENT_WEEKLY_LIMIT: ${{ vars.ENGAGEMENT_WEEKLY_LIMIT || '7' }}
+          ENGAGEMENT_TOPICS: ${{ vars.ENGAGEMENT_TOPICS || 'AI, OpenAI, Google, Microsoft, Apple, cybersecurity, Linux, Python, developer tools' }}
+        run: |
+          set -euo pipefail
+          ARGS="--engagement-plan"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            ARGS="--engagement-live"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.live }}" = "true" ]; then
+            ARGS="--engagement-live"
+          fi
+          python -m app.main $ARGS
+
+      - name: Commit reply history
+        if: always()
+        run: |
+          set -euo pipefail
+          if [ -f state/engagement.json ]; then
+            git add state/engagement.json
+            if ! git diff --cached --quiet; then
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git commit -m "chore: update engagement history [skip ci]"
+              git push
+            fi
+          fi

@@ -1,0 +1,90 @@
+name: Post tech news
+
+on:
+  schedule:
+    - cron: "37 2 * * *"
+    - cron: "37 7 * * *"
+    - cron: "37 13 * * *"
+    - cron: "37 16 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "dry-run"
+        type: choice
+        options:
+          - dry-run
+          - live
+      force:
+        description: "Bypass posting windows"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bluesky-tech-news
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build or publish post
+        env:
+          BSKY_HANDLE: ${{ secrets.BSKY_HANDLE }}
+          BSKY_APP_PASSWORD: ${{ secrets.BSKY_APP_PASSWORD }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+          HEALTHCHECK_URL: ${{ secrets.HEALTHCHECK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          POSTING_ENABLED: ${{ vars.POSTING_ENABLED || 'true' }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            MODE="${{ inputs.mode }}"
+            FORCE="${{ inputs.force }}"
+          else
+            MODE="live"
+            FORCE="false"
+          fi
+          ARGS=""
+          if [ "$MODE" = "live" ]; then
+            ARGS="--live"
+          else
+            ARGS="--dry-run"
+          fi
+          if [ "$FORCE" = "true" ]; then
+            ARGS="$ARGS --force"
+          fi
+          python -m app.main $ARGS --json
+
+      - name: Commit history
+        if: always()
+        run: |
+          set -euo pipefail
+          git add state/history.json
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "chore: update post history [skip ci]"
+            git push
+          fi

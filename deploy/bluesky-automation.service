@@ -1,0 +1,19 @@
+[Unit]
+Description=Bluesky tech-news scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/devaman/Videos/bluesky-automation
+EnvironmentFile=-/home/devaman/Videos/bluesky-automation/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/devaman/Videos/bluesky-automation/.venv/bin/python -m app.scheduler
+Restart=always
+RestartSec=30
+KillSignal=SIGTERM
+TimeoutStopSec=180
+Nice=10
+
+[Install]
+WantedBy=default.target
